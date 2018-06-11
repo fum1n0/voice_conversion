@@ -12,6 +12,10 @@ def load_train_data(filenames, args=args):
 
     for filename in filenames:
         x, sf = readWave(filename, args.stereo)
+        if sf != args.sf:
+            continue
+
+        x = cut_signal(x, args.fl, args.fp, args.cut_p)
         if len(x) < args.sig_len + args.fp:
             continue
 
@@ -55,3 +59,34 @@ def writeWave(signal, sf, name="write"):
     save_wav.setframerate(sf)
     save_wav.writeframes(signal)
     save_wav.close()
+
+
+def cut_signal(signal, fl, fp, power):
+
+    period = (int)(len(signal) / fp)
+
+    sub = fl - (len(signal) - fl * period)
+
+    for i in range(0, sub):
+        signal = np.append(signal, 0.0)
+
+    period = int(len(signal) / fp)
+
+    hammingWindow = np.hamming(fp)
+    cut_signal = np.zeros(period * fp)
+
+    i = 0
+    j = 0
+    while i < period:
+        frame = signal[i * fp:i * fp + fl]
+        frame_filter = hammingWindow * frame * 2.0
+        sp = np.fft.fft(frame_filter)
+        power = np.square((np.abs(sp)/fl))
+        avg_power = np.log10(np.mean(power) + 1e-100)
+        if args.cut < avg_power:
+            cut_signal[j * fp:j * fp + fl] = frame
+            j = j + 1
+        i = i + 1
+    cut_signal = cut_signal[:j*fp]
+
+    return cut_signal
