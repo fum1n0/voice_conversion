@@ -158,7 +158,86 @@ class CycleGAN(object):
         for var in t_vars:
             print(var.name)
 
-    def train(self):
+    def train(self, args):
+
+        self.lr = tf.placeholder(tf.float32, None, name='learning_rate')
+        self.d_optim = tf.train.AdamOptimizer(self.lr, beta1=args.beta1) \
+            .minimize(self.d_loss, var_list=self.d_vars)
+        self.g_optim = tf.train.AdamOptimizer(self.lr, beta1=args.beta1) \
+            .minimize(self.g_loss, var_list=self.g_vars)
+
+        init_op = tf.global_variables_initializer()
+        self.sess.run(init_op)
+        self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
+
+        counter = 1
+        start_time = time.time()
+
+        if args.continue_train:
+            if self.load(args.checkpoint_dir):
+                print(" [*] Load SUCCESS")
+            else:
+                print(" [!] Load failed...")
+
+        for epoch in range(args.epoch):
+
+            if args.use_L1_freq:
+                if np.mod(epoch, args.L1_freq) == 0:
+                    if self.L1_lambda == args.L1_lambda:
+                        self.L1_lambda = args.L1_another
+                    else:
+                        self.L1_lambda = args.L1_lambda
+
+            listA = glob(
+                './datasets/{}/*.*'.format(self.dataset_dir + '/trainA'))
+            listB = glob(
+                './datasets/{}/*.*'.format(self.dataset_dir + '/trainB'))
+
+            np.random.shuffle(listA)
+            np.random.shuffle(listB)
+
+            dataA = load_data(listA, args)
+            dataB = load_data(listB, args)
+
+            batch_idxs = min(min(len(dataA), len(dataB)),
+                             args.train_size) // self.batch_size
+
+            lr = args.lr if epoch < args.epoch_step else args.lr * \
+                (args.epoch-epoch)/(args.epoch-args.epoch_step)
+
+            for idx in range(0, batch_idxs):
+
+                batch_data = np.empty((0, self.sig_len, 2), np.float32)
+                for i in range(0, self.batch_size):
+                    a_ar = dataA[idx * self.batch_size +
+                                 i].reshape(1, self.sig_len, 1)
+                    b_ar = dataB[idx * self.batch_size +
+                                 i].reshape(1, self.sig_len, 1)
+                    batch_mini = np.concatenate([a_ar, b_ar], axis=2)
+                    batch_data = np.append(batch_data, batch_mini, axis=0)
+
+                # Update G network and record fake outputs
+                fake_A, fake_B, _, summary_str = self.sess.run(
+                    [self.fake_A, self.fake_B, self.g_optim, self.g_sum],
+                    feed_dict={self.real_data: batch_data, self.lr: lr, self.L1_lambda_tf: self.L1_lambda})
+                self.writer.add_summary(summary_str, counter)
+                
+
+                # Update D network
+                _, summary_str = self.sess.run(
+                    [self.d_optim, self.d_sum],
+                    feed_dict={self.real_data: batch_data,
+                               self.fake_A_sample: fake_A,
+                               self.fake_B_sample: fake_B,
+                               self.lr: lr})
+                self.writer.add_summary(summary_str, counter)
+
+                counter += 1
+                print(("Epoch: [%4d] [%4d/%4d] time: %4.4f, lambda: %4d" % (
+                    epoch, idx, batch_idxs, time.time() - start_time, self.L1_lambda)))
+
+            self.test_sample(args.sample_dir, epoch, idx)
+            self.save_model(args.checkpoint_dir, counter)
 
     def save_model(self, checkpoint_dir, step):
         model_name = "cyclegan_vc.model"
