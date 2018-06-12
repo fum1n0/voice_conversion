@@ -21,6 +21,7 @@ class CycleGAN(object):
         self.sig_len = args.sig_len
         self.fl = args.fl
         self.fp = args.fp
+        self.sf = args.sf
         self.L1_lambda = args.L1_lambda
         self.dataset_dir = self.dataset_dir
 
@@ -29,7 +30,8 @@ class CycleGAN(object):
 
         OPTIONS = namedtuple(
             'OPTIONS', 'batch_size sig_len conv_dim is_training')
-        self.options = OPTIONS._make((args.batch_size, args.sig_len, args.conv_dim, args.phase='train'))
+        self.options = OPTIONS._make(
+            (args.batch_size, args.sig_len, args.conv_dim, args.phase == 'train'))
 
         self.build_model()
         self.saver = tf.train.Saver()
@@ -59,11 +61,11 @@ class CycleGAN(object):
         self.L1_lambda_tf = tf.placeholder(tf.float32)
 
         self.g_cyc_loss = self.L1_lambda_tf * \
-            tf.reduce_mean(tf.abs(self.real_A - self.fake_A_))
+            tf.reduce_mean(tf.abs(self.real_A - self.fake_A_)) \
             + self.L1_lambda_tf * \
-                tf.reduce_mean(tf.abs(self.real_B - self.fake_B_))
+            tf.reduce_mean(tf.abs(self.real_B - self.fake_B_))
         self.g_loss = tf.reduce_mean(tf.abs(self.DA_fake - tf.ones_like(self.DA_fake)))  \
-            + tf.reduce_mean(tf.abs(self.DB_fake - tf.ones_like(self.DB_fake)))
+            + tf.reduce_mean(tf.abs(self.DB_fake - tf.ones_like(self.DB_fake))) \
             + self.g_cyc_loss
 
         # discriminator
@@ -221,7 +223,6 @@ class CycleGAN(object):
                     [self.fake_A, self.fake_B, self.g_optim, self.g_sum],
                     feed_dict={self.real_data: batch_data, self.lr: lr, self.L1_lambda_tf: self.L1_lambda})
                 self.writer.add_summary(summary_str, counter)
-                
 
                 # Update D network
                 _, summary_str = self.sess.run(
@@ -268,4 +269,45 @@ class CycleGAN(object):
 
     def sample_test(self):
 
-    def test(self):
+    def test(self, args):
+
+        init_op = tf.global_variables_initializer()
+        self.sess.run(init_op)
+        if args.which_direction == 'AtoB':
+            sample_files = glob(
+                './datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
+        elif args.which_direction == 'BtoA':
+            sample_files = glob(
+                './datasets/{}/*.*'.format(self.dataset_dir + '/testB'))
+        else:
+            raise Exception('--which_direction must be AtoB or BtoA')
+
+        if self.load(args.checkpoint_dir):
+            print(" [*] Load SUCCESS")
+        else:
+            print(" [!] Load failed...")
+
+        out_var, in_var = (self.testB, self.test_A) if args.which_direction == 'AtoB' else (
+            self.testA, self.test_B)
+
+        for sample_file in sample_files:
+            print('Processing image: ' + sample_file)
+
+            sample_data = load_data(sample_file, args)
+            if len(sample_data) == 0:
+                continue
+
+            fake_data = np.zeros(len(sample_data)*self.sig_len)
+            signal_path = os.path.join(args.test_dir,
+                                       '{0}_{1}'.format(args.which_direction, os.path.basename(sample_file)))
+
+            for i in range(0, len(sample_data)):
+                fake_signal = self.sess.run(
+                    out_var, feed_dict={in_var: sample_data[i]})
+                fake_signal = fake_signal.reshape(self.sig_len)
+                fake_data[i*self.fp:i*self.fp +
+                          self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
+
+            writeWave(fake_data, args.sf, name=signal_path)
+
+    def val(self):
