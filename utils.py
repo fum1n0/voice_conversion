@@ -6,7 +6,7 @@ import scipy.signal as sig
 import scipy.fftpack
 
 
-def load_train_data(filenames, args=args):
+def load_data(filenames, args):
 
     train_data = np.empty((0, args.sig_len), np.float32)
 
@@ -15,7 +15,8 @@ def load_train_data(filenames, args=args):
         if sf != args.sf:
             continue
 
-        x = cut_signal(x, args.fl, args.fp, args.cut_p)
+        if args.phase == 'train':
+            x = cut_signal(x, args.fl, args.fp, args.cut_p)
         if len(x) < args.sig_len + args.fp:
             continue
 
