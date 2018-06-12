@@ -18,7 +18,7 @@ def discriminator(wave, options, reuse=False, name="discriminator"):
         
         # c1 is batch_size * 16384 * options.conv_dim
         c1 = lrelu(instance_norm_1d(conv1d(wave, output_dim=options.conv_dim,
-                                           input_c=x.shape[2], ks=8, s=2, name='d_c1_conv1d'), name='d_c1_inorm'))
+                                           input_c=wave.shape[2], ks=8, s=2, name='d_c1_conv1d'), name='d_c1_inorm'))
         c1_dim = c1.get_shape().as_list()
 
         # c2 is batch_size * 8192 * (options.conv_dim*2)
@@ -79,7 +79,7 @@ def generator(wave, options, reuse=False, name="generator"):
 
         # c1 is batch_size * 16384 * options.conv_dim
         c1 = instance_norm_1d(conv1d(wave, output_dim=options.conv_dim,
-                                     input_c=x.shape[2], ks=8, s=2, name='g_c1_conv1d'), name='g_c1_inorm')
+                                     input_c=wave.shape[2], ks=8, s=2, name='g_c1_conv1d'), name='g_c1_inorm')
         c1_dim = c1.get_shape().as_list()
 
         # c2 is batch_size * 8192 * (options.conv_dim*2)
