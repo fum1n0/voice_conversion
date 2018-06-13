@@ -6,7 +6,7 @@ import time
 import csv
 import shutil
 from glob import glob
-from collections import namedtiple
+from collections import namedtuple
 
 from module import *
 from utils import *
@@ -18,7 +18,6 @@ class CycleGAN(object):
 
         self.sess = sess
         self.batch_size = args.batch_size
-        self.sig_len = args.sig_len
         self.fl = args.fl
         self.fp = args.fp
         self.sf = args.sf
@@ -31,7 +30,7 @@ class CycleGAN(object):
         OPTIONS = namedtuple(
             'OPTIONS', 'batch_size sig_len conv_dim is_training')
         self.options = OPTIONS._make(
-            (args.batch_size, args.sig_len, args.conv_dim, args.phase == 'train'))
+            (args.batch_size, args.fl, args.conv_dim, args.phase == 'train'))
 
         self.build_model()
         self.saver = tf.train.Saver()
@@ -39,13 +38,13 @@ class CycleGAN(object):
     def build_model(self):
         # generator
         self.real_data = tf.placeholder(
-            tf.float32, [None, self.sig_len, 2], name='real_A_and_B_signal')
+            tf.float32, [None, self.fl, 2], name='real_A_and_B_signal')
         self.real_A = self.real_data[:, :, :1]
         self.real_B = self.real_data[:, :, 1:2]
 
         self.fake_B = self.generator(
             self.real_A, self.options, False, name='generatorA2B')  # Fake B
-        self.fake_A_ = self.genetator(
+        self.fake_A_ = self.generatator(
             self.fake_B, self.options, False, name='generatorB2A')  # Cycle Consistency A
 
         self.fake_A = self.generator(
@@ -70,9 +69,9 @@ class CycleGAN(object):
 
         # discriminator
         self.fake_A_sample = tf.placeholder(tf.float32,
-                                            [None, self.sig_len, 1], name='fake_A_sample')
+                                            [None, self.fl, 1], name='fake_A_sample')
         self.fake_B_sample = tf.placeholder(tf.float32,
-                                            [None, self.sig_len, 1], name='fake_B_sample')
+                                            [None, self.fl, 1], name='fake_B_sample')
         self.DB_real = self.discriminator(
             self.real_B, self.options, reuse=True, name="discriminatorB")
         self.DA_real = self.discriminator(
@@ -146,13 +145,19 @@ class CycleGAN(object):
 
         # test
         self.test_A = tf.placeholder(tf.float32,
-                                     [None, self.sig_len, 1], name='test_A')
+                                     [None, self.fl], name='test_A')
+        self.test_A_ = tf.reshape(
+            self.test_A, [-1, self.fl, 1], name='test_A_')
+
         self.test_B = tf.placeholder(tf.float32,
-                                     [None, self.sig_len, 1], name='test_B')
+                                     [None, self.fl, 1], name='test_B')
+        self.test_B_ = tf.reshape(
+            self.test_B, [-1, self.fl, 1], name='test_B_')
+
         self.testB = self.generator(
-            self.test_A, self.options, True, name="generatorA2B")
+            self.test_A_, self.options, True, name="generatorA2B")
         self.testA = self.generator(
-            self.test_B, self.options, True, name="generatorB2A")
+            self.test_B_, self.options, True, name="generatorB2A")
 
         t_vars = tf.trainable_variables()
         self.d_vars = [var for var in t_vars if 'discriminator' in var.name]
@@ -176,7 +181,7 @@ class CycleGAN(object):
         start_time = time.time()
 
         if args.continue_train:
-            if self.load(args.checkpoint_dir):
+            if self.load_model(args.checkpoint_dir):
                 print(" [*] Load SUCCESS")
             else:
                 print(" [!] Load failed...")
@@ -209,12 +214,12 @@ class CycleGAN(object):
 
             for idx in range(0, batch_idxs):
 
-                batch_data = np.empty((0, self.sig_len, 2), np.float32)
+                batch_data = np.empty((0, self.fl, 2), np.float32)
                 for i in range(0, self.batch_size):
                     a_ar = dataA[idx * self.batch_size +
-                                 i].reshape(1, self.sig_len, 1)
+                                 i].reshape(1, self.fl, 1)
                     b_ar = dataB[idx * self.batch_size +
-                                 i].reshape(1, self.sig_len, 1)
+                                 i].reshape(1, self.fl, 1)
                     batch_mini = np.concatenate([a_ar, b_ar], axis=2)
                     batch_data = np.append(batch_data, batch_mini, axis=0)
 
@@ -237,12 +242,12 @@ class CycleGAN(object):
                 print(("Epoch: [%4d] [%4d/%4d] time: %4.4f, lambda: %4d" % (
                     epoch, idx, batch_idxs, time.time() - start_time, self.L1_lambda)))
 
-            self.test_sample(args.sample_dir, epoch, idx)
+            self.sample_test(args.sample_dir, epoch, idx, args)
             self.save_model(args.checkpoint_dir, counter)
 
     def save_model(self, checkpoint_dir, step):
         model_name = "cyclegan_vc.model"
-        model_dir = "%s_%s" % (self.dataset_dir, self.sig_len)
+        model_dir = "%s_%s" % (self.dataset_dir, self.fl)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
         if not os.path.exists(checkpoint_dir):
@@ -255,7 +260,7 @@ class CycleGAN(object):
     def load_model(self, checkpoint_dir):
         print(" [*] Reading checkpoint...")
 
-        model_dir = "%s_%s" % (self.dataset_dir, self.sig_len)
+        model_dir = "%s_%s" % (self.dataset_dir, self.fl)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
@@ -267,7 +272,51 @@ class CycleGAN(object):
         else:
             return False
 
-    def sample_test(self):
+    def sample_test(self, sample_dir, epoch, idx, args):
+        listA = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
+        listB = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testB'))
+
+        A_epoch_idx_dir = 'A_{:04d}_{:04d}'.format(epoch, idx)
+        B_epoch_idx_dir = 'B_{:04d}_{:04d}'.format(epoch, idx)
+        sampleA_save_dir = os.path.join(sample_dir, A_epoch_idx_dir)
+        sampleB_save_dir = os.path.join(sample_dir, B_epoch_idx_dir)
+
+        if not os.path.exists(sampleA_save_dir):
+            os.makedirs(sampleA_save_dir)
+        if not os.path.exists(sampleB_save_dir):
+            os.makedirs(sampleB_save_dir)
+
+        for filename in listA:
+            dataA = load_data(filename, args)
+            if len(dataA) == 0:
+                continue
+
+            fake_data = np.zeros(self.fl + len(dataA)*self.fp)
+            for i in range(len(dataA)):
+                fake_signal = self.sess.run(self.testB, feed_dict={
+                    self.test_A: dataA[i]})
+
+                fake_data[i*self.fp:i*self.fp +
+                          self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
+
+            writeWave(fake_data, args.sf, name='./{}/AtoB_{:04d}_{:04d}_{}'.format(
+                sampleA_save_dir, epoch, idx, os.path.basename(filename)))
+
+        for filename in listB:
+            dataB = load_data(filename, args)
+            if len(dataB) == 0:
+                continue
+
+            fake_data = np.zeros(self.fl + len(dataB)*self.fp)
+            for i in range(len(dataB)):
+                fake_signal = self.sess.run(self.testA, feed_dict={
+                    self.test_B: dataB[i]})
+
+                fake_data[i*self.fp:i*self.fp +
+                          self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
+
+            writeWave(fake_data, args.sf, name='./{}/BtoA_{:04d}_{:04d}_{}'.format(
+                sampleB_save_dir, epoch, idx, os.path.basename(filename)))
 
     def test(self, args):
 
@@ -282,7 +331,7 @@ class CycleGAN(object):
         else:
             raise Exception('--which_direction must be AtoB or BtoA')
 
-        if self.load(args.checkpoint_dir):
+        if self.load_model(args.checkpoint_dir):
             print(" [*] Load SUCCESS")
         else:
             print(" [!] Load failed...")
@@ -297,17 +346,15 @@ class CycleGAN(object):
             if len(sample_data) == 0:
                 continue
 
-            fake_data = np.zeros(len(sample_data)*self.sig_len)
+            fake_data = np.zeros(self.fl + len(sample_data) * self.fp)
             signal_path = os.path.join(args.test_dir,
                                        '{0}_{1}'.format(args.which_direction, os.path.basename(sample_file)))
 
             for i in range(0, len(sample_data)):
                 fake_signal = self.sess.run(
                     out_var, feed_dict={in_var: sample_data[i]})
-                fake_signal = fake_signal.reshape(self.sig_len)
+                fake_signal = fake_signal.reshape(self.fl)
                 fake_data[i*self.fp:i*self.fp +
                           self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
 
             writeWave(fake_data, args.sf, name=signal_path)
-
-    def val(self):
