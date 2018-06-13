@@ -24,6 +24,14 @@ parser.add_argument('--frame_length', dest='fl', type=int,
                     default=32768, help='then crop to signal size')
 parser.add_argument('--frame_period', dest='fp', type=int,
                     default=4096, help='then move crop point')
+parser.add_argument('--cut_frame_length', dest='c_fl', type=int,
+                    default=1024, help='then crop to signal size')
+parser.add_argument('--cut_frame_period', dest='c_fp', type=int,
+                    default=256, help='then move crop point')
+parser.add_argument('--stereo', dest='stereo',
+                    type=bool, default=False, help='is input data use stereo')
+parser.add_argument('--cut_power', dest='cut_p', type=float,
+                    default=-70.0, help='cut dB border')
 parser.add_argument('--conv_dim', dest='conv_dim', type=int, default=64,
                     help='# filters in first conv layer')
 
@@ -61,6 +69,10 @@ parser.add_argument('--L1_freq', dest='L1_freq', type=int,
                     default=10, help='L1 change freq')
 parser.add_argument('--L1_another', dest='L1_another',
                     type=float, default=1.0, help='another one weight on L1')
+
+parser.add_argument('--preprocessing', dest='preprocessing',
+                    type=bool, default=False, help='use preprocessing')
+
 
 args = parser.parse_args()
 

@@ -22,7 +22,7 @@ class CycleGAN(object):
         self.fp = args.fp
         self.sf = args.sf
         self.L1_lambda = args.L1_lambda
-        self.dataset_dir = self.dataset_dir
+        self.dataset_dir = args.dataset_dir
 
         self.discriminator = discriminator
         self.generator = generator
@@ -34,13 +34,15 @@ class CycleGAN(object):
 
         self.build_model()
         self.saver = tf.train.Saver()
+        if args.preprocessing:
+            self.preprocessing(args)
 
     def build_model(self):
         # generator
         self.real_data = tf.placeholder(
             tf.float32, [None, self.fl, 2], name='real_A_and_B_signal')
         self.real_A = self.real_data[:, :, :1]
-        self.real_B = self.real_data[:, :, 1:2]
+        self.real_B = self.real_data[:, :, 1:]
 
         self.fake_B = self.generator(
             self.real_A, self.options, False, name='generatorA2B')  # Fake B
@@ -93,7 +95,7 @@ class CycleGAN(object):
         self.da_loss_real = tf.reduce_mean(
             tf.abs(self.DA_real - tf.ones_like(self.DA_real)))
         self.da_loss_fake = tf.reduce_mean(
-            tf.abs(self.DA_fake_sample, tf.zeros_like(self.DA_fake_sample)))
+            tf.abs(self.DA_fake_sample - tf.zeros_like(self.DA_fake_sample)))
         self.da_loss = (self.da_loss_real + self.da_loss_fake) / 2
 
         self.d_loss = self.da_loss + self.db_loss
@@ -150,7 +152,7 @@ class CycleGAN(object):
             self.test_A, [-1, self.fl, 1], name='test_A_')
 
         self.test_B = tf.placeholder(tf.float32,
-                                     [None, self.fl, 1], name='test_B')
+                                     [None, self.fl], name='test_B')
         self.test_B_ = tf.reshape(
             self.test_B, [-1, self.fl, 1], name='test_B_')
 
@@ -164,6 +166,63 @@ class CycleGAN(object):
         self.g_vars = [var for var in t_vars if 'generator' in var.name]
         for var in t_vars:
             print(var.name)
+
+    def preprocessing(self, args):
+        print("preprocessing start")
+
+        trainA_c_path = os.path.join(
+            './datasets/{}/{}/'.format(self.dataset_dir, 'trainA_c'))
+        trainB_c_path = os.path.join(
+            './datasets/{}/{}/'.format(self.dataset_dir, 'trainB_c'))
+        testA_c_path = os.path.join(
+            './datasets/{}/{}/'.format(self.dataset_dir, 'testA_c'))
+        testB_c_path = os.path.join(
+            './datasets/{}/{}/'.format(self.dataset_dir, 'testB_c')
+        )
+        if not os.path.exists(trainA_c_path):
+            os.makedirs(trainA_c_path)
+        if not os.path.exists(trainB_c_path):
+            os.makedirs(trainB_c_path)
+        if not os.path.exists(testA_c_path):
+            os.makedirs(testA_c_path)
+        if not os.path.exists(testB_c_path):
+            os.makedirs(testB_c_path)
+
+        list_trainA = glob(
+            './datasets/{}/*.*'.format(self.dataset_dir + '/trainA'))
+        list_trainB = glob(
+            './datasets/{}/*.*'.format(self.dataset_dir + '/trainB'))
+        list_testA = glob(
+            './datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
+        list_testB = glob(
+            './datasets/{}/*.*'.format(self.dataset_dir + '/test_c'))
+
+        for filename in list_trainA:
+            x, sf = readWave(filename, args.stereo)
+            x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
+            writeWave(x, sf, '{}/cut_{}'.format(trainA_c_path,
+                                                os.path.basename(filename)))
+        print("trainA end")
+        for filename in list_trainB:
+            x, sf = readWave(filename, args.stereo)
+            x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
+            writeWave(x, sf, '{}/cut_{}'.format(trainB_c_path,
+                                                os.path.basename(filename)))
+        print("trainB end")
+        for filename in list_testA:
+            x, sf = readWave(filename, args.stereo)
+            x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
+            writeWave(x, sf, '{}/cut_{}'.format(testA_c_path,
+                                                os.path.basename(filename)))
+        print("testA end")
+        for filename in list_testB:
+            x, sf = readWave(filename, args.stereo)
+            x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
+            writeWave(x, sf, '{}/cut_{}'.format(testB_c_path,
+                                                os.path.basename(filename)))
+        print("testB end")
+
+        print("preprocessing end")
 
     def train(self, args):
 
@@ -195,10 +254,16 @@ class CycleGAN(object):
                     else:
                         self.L1_lambda = args.L1_lambda
 
-            listA = glob(
-                './datasets/{}/*.*'.format(self.dataset_dir + '/trainA'))
-            listB = glob(
-                './datasets/{}/*.*'.format(self.dataset_dir + '/trainB'))
+            if args.preprocessing:
+                listA = glob(
+                    './datasets/{}/*.*'.format(self.dataset_dir + '/trainA_c'))
+                listB = glob(
+                    './datasets/{}/*.*'.format(self.dataset_dir + '/trainB_c'))
+            else:
+                listA = glob(
+                    './datasets/{}/*.*'.format(self.dataset_dir + '/trainA'))
+                listB = glob(
+                    './datasets/{}/*.*'.format(self.dataset_dir + '/trainB'))
 
             np.random.shuffle(listA)
             np.random.shuffle(listB)
@@ -206,8 +271,7 @@ class CycleGAN(object):
             dataA = load_data(listA, args)
             dataB = load_data(listB, args)
 
-            batch_idxs = min(min(len(dataA), len(dataB)),
-                             args.train_size) // self.batch_size
+            batch_idxs = (int)(min(len(dataA), len(dataB)) / self.batch_size)
 
             lr = args.lr if epoch < args.epoch_step else args.lr * \
                 (args.epoch-epoch)/(args.epoch-args.epoch_step)
@@ -273,8 +337,16 @@ class CycleGAN(object):
             return False
 
     def sample_test(self, sample_dir, epoch, idx, args):
-        listA = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
-        listB = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testB'))
+        if args.preprocessing:
+            listA = glob(
+                './datasets/{}/*.*'.format(self.dataset_dir + '/testA_c'))
+            listB = glob(
+                './datasets/{}/*.*'.format(self.dataset_dir + '/testB_c'))
+        else:
+            listA = glob(
+                './datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
+            listB = glob(
+                './datasets/{}/*.*'.format(self.dataset_dir + '/testB'))
 
         A_epoch_idx_dir = 'A_{:04d}_{:04d}'.format(epoch, idx)
         B_epoch_idx_dir = 'B_{:04d}_{:04d}'.format(epoch, idx)
@@ -295,7 +367,7 @@ class CycleGAN(object):
             for i in range(len(dataA)):
                 fake_signal = self.sess.run(self.testB, feed_dict={
                     self.test_A: dataA[i]})
-
+                fake_signal = fake_signal.reshape(self.fl)
                 fake_data[i*self.fp:i*self.fp +
                           self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
 
@@ -311,7 +383,7 @@ class CycleGAN(object):
             for i in range(len(dataB)):
                 fake_signal = self.sess.run(self.testA, feed_dict={
                     self.test_B: dataB[i]})
-
+                fake_signal = fake_signal.reshape(self.fl)
                 fake_data[i*self.fp:i*self.fp +
                           self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
 

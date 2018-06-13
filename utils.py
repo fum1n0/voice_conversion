@@ -15,8 +15,6 @@ def load_data(filenames, args):
         if sf != args.sf:
             continue
 
-        if args.phase == 'train':
-            x = cut_signal(x, args.fl, args.fp, args.cut_p)
         if len(x) < args.fl + args.fp:
             continue
 
@@ -84,7 +82,7 @@ def cut_signal(signal, fl, fp, power):
         sp = np.fft.fft(frame_filter)
         power = np.square((np.abs(sp)/fl))
         avg_power = np.log10(np.mean(power) + 1e-100)
-        if args.cut < avg_power:
+        if power < avg_power:
             cut_signal[j * fp:j * fp + fl] = frame
             j = j + 1
         i = i + 1
