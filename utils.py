@@ -18,8 +18,8 @@ def load_data(filenames, args):
         if len(x) < args.fl + args.fp:
             continue
 
-        period = (int)(len(x) / fp)
-        sub = fl - (len(x) - fl * period)
+        period = (int)(len(x) / args.fp)
+        sub = args.fl - (len(x) - args.fl * period)
         for i in range(0, sub):
             x = np.append(x, 0.0)
 
