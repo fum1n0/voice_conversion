@@ -6,6 +6,7 @@ import tensorflow as tf
 tf.set_random_seed(19)
 from model import CycleGAN
 
+
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--dataset_dir', dest='dataset_dir',
                     default='A2B', help='path of the dataset')
@@ -99,4 +100,5 @@ def main(_):
 
 
 if __name__ == '__main__':
+
     tf.app.run()
