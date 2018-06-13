@@ -8,7 +8,7 @@ import scipy.fftpack
 
 def load_data(filenames, args):
 
-    data = np.empty((0, args.sig_len), np.float32)
+    data = np.empty((0, args.fl), np.float32)
 
     for filename in filenames:
         x, sf = readWave(filename, args.stereo)
@@ -17,12 +17,12 @@ def load_data(filenames, args):
 
         if args.phase == 'train':
             x = cut_signal(x, args.fl, args.fp, args.cut_p)
-        if len(x) < args.sig_len + args.fp:
+        if len(x) < args.fl + args.fp:
             continue
 
-        idx = (int)((len(x) - args.sig_len) / args.fp) + 1
+        idx = (int)((len(x) - args.fl) / args.fp) + 1
         for i in range(idx):
-            data = x[i*args.fp:(i+1)*args.fp+args.sig_len]
+            data = x[i*args.fp:(i+1)*args.fp+args.fl]
             data = np.append(data, np.array([data]), axis=0)
 
     return data
