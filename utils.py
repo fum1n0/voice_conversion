@@ -18,10 +18,15 @@ def load_data(filenames, args):
         if len(x) < args.fl + args.fp:
             continue
 
-        idx = (int)((len(x) - args.fl) / args.fp) + 1
+        period = (int)(len(x) / fp)
+        sub = fl - (len(x) - fl * period)
+        for i in range(0, sub):
+            x = np.append(x, 0.0)
+
+        idx = (int)((len(x) - args.fl) / args.fp)
         for i in range(idx):
-            data = x[i*args.fp:(i+1)*args.fp+args.fl]
-            data = np.append(data, np.array([data]), axis=0)
+            signal = x[i*args.fp:i*args.fp+args.fl]
+            data = np.append(data, np.array([signal]), axis=0)
 
     return data
 

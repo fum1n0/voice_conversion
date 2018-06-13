@@ -177,8 +177,7 @@ class CycleGAN(object):
         testA_c_path = os.path.join(
             './datasets/{}/{}/'.format(self.dataset_dir, 'testA_c'))
         testB_c_path = os.path.join(
-            './datasets/{}/{}/'.format(self.dataset_dir, 'testB_c')
-        )
+            './datasets/{}/{}/'.format(self.dataset_dir, 'testB_c'))
         if not os.path.exists(trainA_c_path):
             os.makedirs(trainA_c_path)
         if not os.path.exists(trainB_c_path):
@@ -199,24 +198,30 @@ class CycleGAN(object):
 
         for filename in list_trainA:
             x, sf = readWave(filename, args.stereo)
+            if sf != args.sf:continue
             x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
             writeWave(x, sf, '{}/cut_{}'.format(trainA_c_path,
                                                 os.path.basename(filename)))
         print("trainA end")
         for filename in list_trainB:
             x, sf = readWave(filename, args.stereo)
+            if sf != args.sf:continue
             x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
             writeWave(x, sf, '{}/cut_{}'.format(trainB_c_path,
                                                 os.path.basename(filename)))
         print("trainB end")
         for filename in list_testA:
             x, sf = readWave(filename, args.stereo)
+            if sf != args.sf:
+                continue
             x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
             writeWave(x, sf, '{}/cut_{}'.format(testA_c_path,
                                                 os.path.basename(filename)))
         print("testA end")
         for filename in list_testB:
             x, sf = readWave(filename, args.stereo)
+            if sf != args.sf:
+                continue
             x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
             writeWave(x, sf, '{}/cut_{}'.format(testB_c_path,
                                                 os.path.basename(filename)))
