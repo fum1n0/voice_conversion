@@ -44,7 +44,7 @@ class CycleGAN(object):
 
         self.fake_B = self.generator(
             self.real_A, self.options, False, name='generatorA2B')  # Fake B
-        self.fake_A_ = self.generatator(
+        self.fake_A_ = self.generator(
             self.fake_B, self.options, False, name='generatorB2A')  # Cycle Consistency A
 
         self.fake_A = self.generator(
