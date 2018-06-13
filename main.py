@@ -18,6 +18,8 @@ parser.add_argument('--batch_size', dest='batch_size',
 parser.add_argument('--train_size', dest='train_size',
                     type=int, default=1e8, help='# images used to train')
 
+parser.add_argument('--sf', dest='sf', type=int,
+                    default=44100, help='data sampling freq')
 parser.add_argument('--frame_length', dest='fl', type=int,
                     default=32768, help='then crop to signal size')
 parser.add_argument('--frame_period', dest='fp', type=int,
