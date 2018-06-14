@@ -75,9 +75,9 @@ if __name__ == '__main__':
 
     hammingWindow = np.hamming(fp)
     cut_signal = np.zeros(period * fp)
-
+    print("start")
     i = 0
-    j = 0
+    j = -1
     while i < period:
         frame = signal[i * fp:i * fp + fl]
         frame_filter = hammingWindow * frame * 2.0
@@ -85,8 +85,10 @@ if __name__ == '__main__':
         power = np.square((np.abs(sp)/fl))
         avg_power = np.log10(np.mean(power) + 1e-100)
         if args.cut < avg_power:
-            cut_signal[j * fp:j * fp + fl] = frame
             j = j + 1
+            cut_signal[j * fp:j * fp + fl] = frame
+
         i = i + 1
     cut_signal = cut_signal[:j*fp]
     writeWave(cut_signal, fs, 'cut_{}'.format(os.path.basename(args.path)))
+    print("end")

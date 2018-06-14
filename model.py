@@ -147,14 +147,14 @@ class CycleGAN(object):
 
         # test
         self.test_A = tf.placeholder(tf.float32,
-                                     [None, self.fl], name='test_A')
+                                     [self.fl], name='test_A')
         self.test_A_ = tf.reshape(
-            self.test_A, [-1, self.fl, 1], name='test_A_')
+            self.test_A, [1, self.fl, 1], name='test_A_')
 
         self.test_B = tf.placeholder(tf.float32,
-                                     [None, self.fl], name='test_B')
+                                     [self.fl], name='test_B')
         self.test_B_ = tf.reshape(
-            self.test_B, [-1, self.fl, 1], name='test_B_')
+            self.test_B, [1, self.fl, 1], name='test_B_')
 
         self.testB = self.generator(
             self.test_A_, self.options, True, name="generatorA2B")
@@ -279,8 +279,8 @@ class CycleGAN(object):
             np.random.shuffle(listA)
             np.random.shuffle(listB)
 
-            dataA = load_data(listA, args)
-            dataB = load_data(listB, args)
+            dataA = load_train_data(listA, args)
+            dataB = load_train_data(listB, args)
 
             batch_idxs = (int)(min(len(dataA), len(dataB)) / self.batch_size)
 
@@ -370,7 +370,7 @@ class CycleGAN(object):
             os.makedirs(sampleB_save_dir)
 
         for filename in listA:
-            dataA = load_data(filename, args)
+            dataA = load_test_data(filename, args)
             if len(dataA) == 0:
                 continue
 
@@ -383,10 +383,10 @@ class CycleGAN(object):
                           self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
 
             writeWave(fake_data, args.sf, norm=True, name='./{}/AtoB_{:04d}_{:04d}_{}'.format(
-                sampleA_save_dir, epoch, idx, os.path.basename(filename)))
+                sampleA_save_dir, epoch, idx, os.path.basename(filename)[:-4]))
 
         for filename in listB:
-            dataB = load_data(filename, args)
+            dataB = load_test_data(filename, args)
             if len(dataB) == 0:
                 continue
 
@@ -399,7 +399,7 @@ class CycleGAN(object):
                           self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
 
             writeWave(fake_data, args.sf, norm=True, name='./{}/BtoA_{:04d}_{:04d}_{}'.format(
-                sampleB_save_dir, epoch, idx, os.path.basename(filename)))
+                sampleB_save_dir, epoch, idx, os.path.basename(filename)[:-4]))
 
     def test(self, args):
 
@@ -423,9 +423,9 @@ class CycleGAN(object):
             self.testA, self.test_B)
 
         for sample_file in sample_files:
-            print('Processing image: ' + sample_file)
+            print('Processing data: ' + os.path.basename(sample_file))
 
-            sample_data = load_data(sample_file, args)
+            sample_data = load_test_data(sample_file, args)
             if len(sample_data) == 0:
                 continue
 
