@@ -4,6 +4,7 @@ import numpy as np
 import scipy.io.wavfile
 import scipy.signal as sig
 import scipy.fftpack
+import csv
 
 
 def load_train_data(filenames, args):
@@ -11,7 +12,8 @@ def load_train_data(filenames, args):
     data = np.empty((0, args.fl), np.float32)
 
     for filename in filenames:
-        x, fs = readWave(filename, args.stereo, True)
+        wav_ = np.empty((0, args.fl), np.float32)
+        x, fs = readWave(filename, args.stereo)
         if fs != args.fs or len(x) < args.fl + args.fp:
             continue
 
@@ -22,17 +24,19 @@ def load_train_data(filenames, args):
 
         idx = (int)((len(x) - args.fl) / args.fp)
         for i in range(idx):
-            signal = x[i*args.fp:i*args.fp+args.fl]
+            signal = x[i * args.fp:i * args.fp + args.fl]
+            wav_ = np.append(wav_, np.array([signal]), axis=0)
             data = np.append(data, np.array([signal]), axis=0)
 
-    return data
+        np.savetxt(filename[:-4]+".csv", wav_, delimiter=",")
+
 
 
 def load_test_data(filename, args):
 
     data = np.empty((0, args.fl), np.float32)
 
-    x, fs = readWave(filename, args.stereo, True)
+    x, fs = readWave(filename, args.stereo)
     if fs != args.fs or len(x) < args.fl + args.fp:
         return data
 
@@ -45,6 +49,28 @@ def load_test_data(filename, args):
     for i in range(idx):
         signal = x[i*args.fp:i*args.fp+args.fl]
         data = np.append(data, np.array([signal]), axis=0)
+
+    np.savetxt(filename[:-4]+".csv", data, delimiter=",")
+    return data
+
+
+def load_train_csv(filenames, args):
+
+    data = np.empty((0, args.fl), np.float32)
+
+    for filename in filenames:
+        x = np.loadtxt(filename, delimiter=',')
+        data = np.append(data, np.array(x), axis=0)
+
+    return data
+
+
+def load_test_csv(filename, args):
+
+    data = np.empty((0, args.fl), np.float32)
+
+    x = np.loadtxt(filename, delimiter=',')
+    data = np.append(data, np.array(x), axis=0)
 
     return data
 

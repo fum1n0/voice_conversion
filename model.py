@@ -187,13 +187,13 @@ class CycleGAN(object):
             os.makedirs(testB_c_path)
 
         list_trainA = glob(
-            './datasets/{}/*.*'.format(self.dataset_dir + '/trainA'))
+            './datasets/{}/*.wav'.format(self.dataset_dir + '/trainA'))
         list_trainB = glob(
-            './datasets/{}/*.*'.format(self.dataset_dir + '/trainB'))
+            './datasets/{}/*.wav'.format(self.dataset_dir + '/trainB'))
         list_testA = glob(
-            './datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
+            './datasets/{}/*.wav'.format(self.dataset_dir + '/testA'))
         list_testB = glob(
-            './datasets/{}/*.*'.format(self.dataset_dir + '/testB'))
+            './datasets/{}/*.wav'.format(self.dataset_dir + '/testB'))
 
         print("preprocessing start")
         for filename in list_trainA:
@@ -248,6 +248,7 @@ class CycleGAN(object):
         self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
 
         counter = 1
+        is_csv = True
         start_time = time.time()
 
         if args.continue_train:
@@ -255,6 +256,34 @@ class CycleGAN(object):
                 print(" [*] Load SUCCESS")
             else:
                 print(" [!] Load failed...")
+
+        if args.preprocessing:
+            listA = glob(
+                './datasets/{}/*.csv'.format(self.dataset_dir + '/trainA_c'))
+            listB = glob(
+                './datasets/{}/*.csv'.format(self.dataset_dir + '/trainB_c'))
+
+            if len(listA) == 0 or len(listB):
+                listA = glob(
+                    './datasets/{}/*.wav'.format(self.dataset_dir + '/trainA_c'))
+                listB = glob(
+                    './datasets/{}/*.wav'.format(self.dataset_dir + '/trainB_c'))
+                is_csv = False
+        else:
+            listA = glob(
+                './datasets/{}/*.csv'.format(self.dataset_dir + '/trainA'))
+            listB = glob(
+                './datasets/{}/*.csv'.format(self.dataset_dir + '/trainB'))
+            if len(listA) == 0 or len(listB):
+                listA = glob(
+                    './datasets/{}/*.wav'.format(self.dataset_dir + '/trainA'))
+                listB = glob(
+                    './datasets/{}/*.wav'.format(self.dataset_dir + '/trainB'))
+                is_csv = False
+
+        if not is_csv:
+            load_train_data(listA, args)
+            load_train_data(listB, args)
 
         for epoch in range(args.epoch):
 
@@ -267,20 +296,20 @@ class CycleGAN(object):
 
             if args.preprocessing:
                 listA = glob(
-                    './datasets/{}/*.*'.format(self.dataset_dir + '/trainA_c'))
+                    './datasets/{}/*.csv'.format(self.dataset_dir + '/trainA_c'))
                 listB = glob(
-                    './datasets/{}/*.*'.format(self.dataset_dir + '/trainB_c'))
+                    './datasets/{}/*.csv'.format(self.dataset_dir + '/trainB_c'))
             else:
                 listA = glob(
-                    './datasets/{}/*.*'.format(self.dataset_dir + '/trainA'))
+                    './datasets/{}/*.csv'.format(self.dataset_dir + '/trainA'))
                 listB = glob(
-                    './datasets/{}/*.*'.format(self.dataset_dir + '/trainB'))
+                    './datasets/{}/*.csv'.format(self.dataset_dir + '/trainB'))
 
             np.random.shuffle(listA)
             np.random.shuffle(listB)
 
-            dataA = load_train_data(listA, args)
-            dataB = load_train_data(listB, args)
+            dataA = load_train_csv(listA, args)
+            dataB = load_train_csv(listB, args)
 
             batch_idxs = (int)(min(len(dataA), len(dataB)) / self.batch_size)
 
@@ -348,16 +377,33 @@ class CycleGAN(object):
             return False
 
     def sample_test(self, sample_dir, epoch, idx, args):
+
+        is_csv = True
+
         if args.preprocessing:
             listA = glob(
-                './datasets/{}/*.*'.format(self.dataset_dir + '/testA_c'))
+                './datasets/{}/*.csv'.format(self.dataset_dir + '/testA_c'))
             listB = glob(
-                './datasets/{}/*.*'.format(self.dataset_dir + '/testB_c'))
+                './datasets/{}/*.csv'.format(self.dataset_dir + '/testB_c'))
+
+            if len(listA) == 0 or len(listB) == 0:
+                listA = glob(
+                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testA_c'))
+                listB = glob(
+                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testB_c'))
+                is_csv = False
         else:
             listA = glob(
-                './datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
+                './datasets/{}/*.csv'.format(self.dataset_dir + '/testA'))
             listB = glob(
-                './datasets/{}/*.*'.format(self.dataset_dir + '/testB'))
+                './datasets/{}/*.csv'.format(self.dataset_dir + '/testB'))
+
+            if len(listA) == 0 or len(listB) == 0:
+                listA = glob(
+                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testA'))
+                listB = glob(
+                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testB'))
+                is_csv = False
 
         A_epoch_idx_dir = 'A_{:04d}_{:04d}'.format(epoch, idx)
         B_epoch_idx_dir = 'B_{:04d}_{:04d}'.format(epoch, idx)
@@ -370,7 +416,11 @@ class CycleGAN(object):
             os.makedirs(sampleB_save_dir)
 
         for filename in listA:
-            dataA = load_test_data(filename, args)
+            if is_csv:
+                dataA = load_test_csv(filename, args)
+            else:
+                dataA = load_test_data(filename, args)
+
             if len(dataA) == 0:
                 continue
 
@@ -386,7 +436,11 @@ class CycleGAN(object):
                 sampleA_save_dir, epoch, idx, os.path.basename(filename)[:-4]))
 
         for filename in listB:
-            dataB = load_test_data(filename, args)
+            if is_csv:
+                dataB = load_test_csv(filename, args)
+            else:
+                dataB = load_test_data(filename, args)
+
             if len(dataB) == 0:
                 continue
 
@@ -405,12 +459,26 @@ class CycleGAN(object):
 
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)
+
+        is_csv = True
+
         if args.which_direction == 'AtoB':
             sample_files = glob(
-                './datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
+                './datasets/{}/*.csv'.format(self.dataset_dir + '/testA'))
+            if len(sample_files) == 0:
+                sample_files = glob(
+                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testA'))
+                is_csv = False
+
         elif args.which_direction == 'BtoA':
             sample_files = glob(
-                './datasets/{}/*.*'.format(self.dataset_dir + '/testB'))
+                './datasets/{}/*.csv'.format(self.dataset_dir + '/testB'))
+
+            if len(sample_files) == 0:
+                sample_files = glob(
+                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testB'))
+                is_csv = False
+
         else:
             raise Exception('--which_direction must be AtoB or BtoA')
 
@@ -425,7 +493,11 @@ class CycleGAN(object):
         for sample_file in sample_files:
             print('Processing data: ' + os.path.basename(sample_file))
 
-            sample_data = load_test_data(sample_file, args)
+            if is_csv:
+                sample_data = load_test_csv(sample_file, args)
+            else:
+                sample_data = load_test_data(sample_file, args)
+
             if len(sample_data) == 0:
                 continue
 
