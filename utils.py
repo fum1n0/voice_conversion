@@ -11,8 +11,8 @@ def load_train_data(filenames, args):
     data = np.empty((0, args.fl), np.float32)
 
     for filename in filenames:
-        x, sf = readWave(filename, args.stereo, True)
-        if sf != args.sf or len(x) < args.fl + args.fp:
+        x, fs = readWave(filename, args.stereo, True)
+        if fs != args.fs or len(x) < args.fl + args.fp:
             continue
 
         period = (int)(len(x) / args.fp)
@@ -32,8 +32,8 @@ def load_test_data(filename, args):
 
     data = np.empty((0, args.fl), np.float32)
 
-    x, sf = readWave(filename, args.stereo, True)
-    if sf != args.sf or len(x) < args.fl + args.fp:
+    x, fs = readWave(filename, args.stereo, True)
+    if fs != args.fs or len(x) < args.fl + args.fp:
         return data
 
     period = (int)(len(x) / args.fp)
@@ -49,64 +49,44 @@ def load_test_data(filename, args):
     return data
 
 
-def readWave(filename, stereo=False, norm=False):
+def readWave(filename, stereo=False):
     wf = wave.open(filename, "r")
-    sf = wf.getframerate()
+    fs = wf.getframerate()
     data = wf.readframes(wf.getnframes())
     if wf.getnchannels() == 2:
         x = np.frombuffer(data, dtype="int16") / 32768.0
         left = x[::2]
         right = x[1::2]
-        if norm:
-            x = 0.5 * 0.5 * (left + right)  # 範囲を[-0.5:0.5]に正規化
-        else:
-            x = (left + right) / 2.0  # 範囲を[-1.0:1.0]に正規化
+        x = (left + right) / 2.0  # 範囲を[-1.0:1.0]に正規化
     else:
-        if norm:
-            x = 0.5 * np.frombuffer(data, dtype="int16") / \
-                32768.0  # 範囲を[-0.5:0.5]に正規化
-        else:
-            x = np.frombuffer(data, dtype="int16") / \
-                32768.0  # 範囲を[-1.0:1.0]に正規化
+        x = np.frombuffer(data, dtype="int16") / \
+            32768.0  # 範囲を[-1.0:1.0]に正規化
 
     wf.close()
 
     if not stereo:
-        return x.astype(np.float32), float(sf)
+        return x.astype(np.float32), float(fs)
     else:
-        if norm:
-            left = 0.5 * left
-            right = 0.5 * right
-        else:
-            left = left
-            right = right
+        left = left
+        right = right
 
-        return left.astype(np.float32), right.astype(np.float32), float(sf)
+        return left.astype(np.float32), right.astype(np.float32), float(fs)
 
 
-def writeWave(signal, sf, norm=False, name="write"):
+def writeWave(signal, fs, name="write"):
 
     mx = max(max(signal), abs(min(signal)))
 
-    if norm:
-        # [-0.5:0.5]の範囲で振幅があるという前提
-        if mx < 0.5:
-            signal *= 2.0 * 32768.0
-        elif mx < 1.0:
-            signal *= 32768.0
-        else:
-            signal *= 32768.0 / mx
+    if mx < 1.0:
+        signal *= 32768.0
     else:
-        if mx < 1.0:
-            signal *= 32768.0
-        else:
-            signal *= 32768.0 / mx
+        signal *= 32768.0 / mx
 
     signal = signal.astype(np.int16)
     save_wav = wave.Wave_write(name+".wav")
     save_wav.setnchannels(1)
     save_wav.setsampwidth(2)
-    save_wav.setframerate(sf)
+    save_wav.setframerate(fs)
     save_wav.writeframes(signal)
     save_wav.close()
 

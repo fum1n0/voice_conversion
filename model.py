@@ -20,7 +20,7 @@ class CycleGAN(object):
         self.batch_size = args.batch_size
         self.fl = args.fl
         self.fp = args.fp
-        self.sf = args.sf
+        self.fs = args.fs
         self.L1_lambda = args.L1_lambda
         self.dataset_dir = args.dataset_dir
 
@@ -197,39 +197,39 @@ class CycleGAN(object):
 
         print("preprocessing start")
         for filename in list_trainA:
-            x, sf = readWave(filename, args.stereo, norm=False)
-            if sf != args.sf:
+            x, fs = readWave(filename, args.stereo)
+            if fs != args.fs:
                 continue
             x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
-            writeWave(x, sf, False, '{}/cut_{}'.format(trainA_c_path,
-                                                       os.path.basename(filename)[:-4]))
+            writeWave(x, fs, '{}/cut_{}'.format(trainA_c_path,
+                                                os.path.basename(filename)[:-4]))
             print(os.path.basename(filename))
         print("trainA end")
         for filename in list_trainB:
-            x, sf = readWave(filename, args.stereo, norm=False)
-            if sf != args.sf:
+            x, fs = readWave(filename, args.stereo)
+            if fs != args.fs:
                 continue
             x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
-            writeWave(x, sf, False, '{}/cut_{}'.format(trainB_c_path,
-                                                       os.path.basename(filename)[:-4]))
+            writeWave(x, fs, '{}/cut_{}'.format(trainB_c_path,
+                                                os.path.basename(filename)[:-4]))
             print(os.path.basename(filename))
         print("trainB end")
         for filename in list_testA:
-            x, sf = readWave(filename, args.stereo, norm=False)
-            if sf != args.sf:
+            x, fs = readWave(filename, args.stereo)
+            if fs != args.fs:
                 continue
             x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
-            writeWave(x, sf, False, '{}/cut_{}'.format(testA_c_path,
-                                                       os.path.basename(filename)[:-4]))
+            writeWave(x, fs, '{}/cut_{}'.format(testA_c_path,
+                                                os.path.basename(filename)[:-4]))
             print(os.path.basename(filename))
         print("testA end")
         for filename in list_testB:
-            x, sf = readWave(filename, args.stereo, norm=False)
-            if sf != args.sf:
+            x, fs = readWave(filename, args.stereo)
+            if fs != args.fs:
                 continue
             x = cut_signal(x, args.c_fl, args.c_fp, args.cut_p)
-            writeWave(x, sf, False, '{}/cut_{}'.format(testB_c_path,
-                                                       os.path.basename(filename)[:-4]))
+            writeWave(x, fs, '{}/cut_{}'.format(testB_c_path,
+                                                os.path.basename(filename)[:-4]))
             print(os.path.basename(filename))
         print("testB end")
 
@@ -382,7 +382,7 @@ class CycleGAN(object):
                 fake_data[i*self.fp:i*self.fp +
                           self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
 
-            writeWave(fake_data, args.sf, norm=True, name='./{}/AtoB_{:04d}_{:04d}_{}'.format(
+            writeWave(fake_data, args.fs, name='./{}/AtoB_{:04d}_{:04d}_{}'.format(
                 sampleA_save_dir, epoch, idx, os.path.basename(filename)[:-4]))
 
         for filename in listB:
@@ -398,7 +398,7 @@ class CycleGAN(object):
                 fake_data[i*self.fp:i*self.fp +
                           self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
 
-            writeWave(fake_data, args.sf, norm=True, name='./{}/BtoA_{:04d}_{:04d}_{}'.format(
+            writeWave(fake_data, args.fs, name='./{}/BtoA_{:04d}_{:04d}_{}'.format(
                 sampleB_save_dir, epoch, idx, os.path.basename(filename)[:-4]))
 
     def test(self, args):
@@ -440,4 +440,4 @@ class CycleGAN(object):
                 fake_data[i*self.fp:i*self.fp +
                           self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
 
-            writeWave(fake_data, args.sf, norm=False, name=signal_path[:-4])
+            writeWave(fake_data, args.fs, name=signal_path[:-4])

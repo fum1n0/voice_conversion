@@ -60,7 +60,7 @@ def discriminator(wave, options, reuse=False, name="discriminator"):
         c9 = conv1d(c8, output_dim=1,
                     input_c=c8_dim[2], ks=8, s=1, name='d_c9_conv1d')
 
-        return c9
+        return tf.nn.tanh(c9)
 
 
 def generator(wave, options, reuse=False, name="generator"):
@@ -177,6 +177,5 @@ def generator(wave, options, reuse=False, name="generator"):
         # d9 is batch_size * 32768 * 1
         d9 = deconv1d(d8, output_shape=[tf.shape(d8)[0], (int)(
             d8_dim[1] * 2), 1], input_c=d8_dim[2], ks=8, s=2, name='g_d9_deconv1d')
-        d9 = tf.nn.tanh(d9)
 
-        return d9
+        return tf.nn.tanh(d9)
