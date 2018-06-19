@@ -77,3 +77,13 @@ def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=
             return tf.matmul(input_, matrix) + bias, matrix, bias
         else:
             return tf.matmul(input_, matrix) + bias
+
+
+def affine(input_, output_dim=3, name="affine"):
+    with tf.variable_scope(name):
+        return slim.fully_connected(inputs=input_, num_outputs=output_dim, activation_fn=None, scope=name)
+
+
+def flatten(input_, name="flatten"):
+    with tf.variable_scope(name):
+        return slim.flatten(inputs=input_, scope=name)
