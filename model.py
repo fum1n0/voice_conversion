@@ -65,8 +65,8 @@ class CycleGAN(object):
             tf.reduce_mean(tf.abs(self.real_A - self.fake_A_)) \
             + self.L1_lambda_tf * \
             tf.reduce_mean(tf.abs(self.real_B - self.fake_B_))
-        self.g_loss = tf.reduce_mean(tf.abs(self.DA_fake - tf.ones_like(self.DA_fake)))  \
-            + tf.reduce_mean(tf.abs(self.DB_fake - tf.ones_like(self.DB_fake))) \
+        self.g_loss = tf.reduce_mean((self.DA_fake - tf.ones_like(self.DA_fake))**2)  \
+            + tf.reduce_mean((self.DB_fake - tf.ones_like(self.DB_fake))**2) \
             + self.g_cyc_loss
 
         # discriminator
@@ -86,17 +86,13 @@ class CycleGAN(object):
         self.DB_res = self.DB_real + self.DB_fake
         self.DA_res = self.DA_real + self.DA_fake
 
-        self.db_loss_real = tf.reduce_mean(
-            tf.abs(self.DB_real - tf.ones_like(self.DB_real)))
-        self.db_loss_fake = tf.reduce_mean(
-            tf.abs(self.DB_fake_sample - tf.zeros_like(self.DB_fake_sample)))
-        self.db_loss = (self.db_loss_real + self.db_loss_fake) / 2
+        self.db_loss_real = tf.reduce_mean((self.DB_real - tf.ones_like(self.DB_real))**2)
+        self.db_loss_fake = tf.reduce_mean((self.DB_fake_sample - tf.zeros_like(self.DB_fake_sample))**2)
+        self.db_loss = (self.db_loss_real + self.db_loss_fake) / 2.0
 
-        self.da_loss_real = tf.reduce_mean(
-            tf.abs(self.DA_real - tf.ones_like(self.DA_real)))
-        self.da_loss_fake = tf.reduce_mean(
-            tf.abs(self.DA_fake_sample - tf.zeros_like(self.DA_fake_sample)))
-        self.da_loss = (self.da_loss_real + self.da_loss_fake) / 2
+        self.da_loss_real = tf.reduce_mean((self.DA_real - tf.ones_like(self.DA_real))**2)
+        self.da_loss_fake = tf.reduce_mean((self.DA_fake_sample - tf.zeros_like(self.DA_fake_sample))**2)
+        self.da_loss = (self.da_loss_real + self.da_loss_fake) / 2.0
 
         self.d_loss = self.da_loss + self.db_loss
 
