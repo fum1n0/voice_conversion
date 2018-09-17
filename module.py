@@ -194,7 +194,7 @@ def generator(wave, options, reuse=False, name="generator"):
 
         # d12 is batch_size * 16384 * (1*2)
         d12 = deconv1d(d11, output_shape=[tf.shape(d11)[0], (int)(d11_dim[1] * 2),
-                                          (int)(d11_dim[2]/(2*2))], input_c=d11_dim[2], ks=5, s=2, name='g_d12_deconv1d')
+                                          1], input_c=d11_dim[2], ks=5, s=2, name='g_d12_deconv1d')
         d12 = tf.concat([instance_norm_1d(d12, name='g_d12_inorm'), wave], 2)
         d12_dim = d12.get_shape().as_list()
 
