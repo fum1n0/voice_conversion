@@ -20,19 +20,19 @@ parser.add_argument('--train_size', dest='train_size',
                     type=int, default=1e8, help='# images used to train')
 
 parser.add_argument('--fs', dest='fs', type=int,
-                    default=44100, help='data sampling freq')
+                    default=22500, help='data sampling freq')
 parser.add_argument('--frame_length', dest='fl', type=int,
-                    default=32768, help='then crop to signal size')
+                    default=16384, help='then crop to signal size')
 parser.add_argument('--frame_period', dest='fp', type=int,
-                    default=4096, help='then move crop point')
+                    default=8192, help='then move crop point')
 parser.add_argument('--cut_frame_length', dest='c_fl', type=int,
-                    default=1024, help='then crop to signal size')
+                    default=1024, help='then crop to signal size')  # wav preprocessing(fl)
 parser.add_argument('--cut_frame_period', dest='c_fp', type=int,
-                    default=256, help='then move crop point')
+                    default=256, help='then move crop point')  # wav preprocessing(fp)
 parser.add_argument('--stereo', dest='stereo',
                     type=bool, default=False, help='is input data use stereo')
 parser.add_argument('--cut_power', dest='cut_p', type=float,
-                    default=-70.0, help='cut dB border')
+                    default=-70.0, help='cut dB border')  # wav preprocessing(dB)
 parser.add_argument('--conv_dim', dest='conv_dim', type=int, default=64,
                     help='# filters in first conv layer')
 
