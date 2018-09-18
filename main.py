@@ -20,7 +20,7 @@ parser.add_argument('--train_size', dest='train_size',
                     type=int, default=1e8, help='# images used to train')
 
 parser.add_argument('--fs', dest='fs', type=int,
-                    default=22500, help='data sampling freq')
+                    default=22050, help='data sampling freq')
 parser.add_argument('--frame_length', dest='fl', type=int,
                     default=16384, help='then crop to signal size')
 parser.add_argument('--frame_period', dest='fp', type=int,

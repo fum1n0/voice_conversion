@@ -17,7 +17,8 @@ def discriminator(wave, options, reuse=False, name="discriminator"):
 
         wave_dim = wave.get_shape().as_list()
         # c1 is batch_size * 8192 * options.conv_dim
-        c1 = lrelu(conv1d(wave, output_dim=options.conv_dim,input_c=wave_dim[2], ks=15, s=2, name='d_c1_conv1d'))
+        c1 = lrelu(conv1d(wave, output_dim=options.conv_dim,
+                          input_c=wave_dim[2], ks=15, s=2, name='d_c1_conv1d'))
         c1_dim = c1.get_shape().as_list()
 
         # c2 is batch_size * 4096 * (options.conv_dim*2)
@@ -108,23 +109,22 @@ def generator(wave, options, reuse=False, name="generator"):
 
         # c10 is batch_size * 16 * (options.conv_dim*8)
         c10 = instance_norm_1d(conv1d(c9, output_dim=options.conv_dim*8,
-                                     input_c=c9_dim[2], ks=15, s=2, name='g_c10_conv1d'), name='g_c10_inorm')
+                                      input_c=c9_dim[2], ks=15, s=2, name='g_c10_conv1d'), name='g_c10_inorm')
         c10_dim = c10.get_shape().as_list()
 
         # c11 is batch_size * 8 * (options.conv_dim*8)
         c11 = instance_norm_1d(conv1d(c10, output_dim=options.conv_dim*8,
-                                     input_c=c10_dim[2], ks=15, s=2, name='g_c11_conv1d'), name='g_c11_inorm')
+                                      input_c=c10_dim[2], ks=15, s=2, name='g_c11_conv1d'), name='g_c11_inorm')
         c11_dim = c11.get_shape().as_list()
 
         # c12 is batch_size * 4 * (options.conv_dim*8)
         c12 = instance_norm_1d(conv1d(c11, output_dim=options.conv_dim*8,
-                                     input_c=c11_dim[2], ks=15, s=2, name='g_c12_conv1d'), name='g_c12_inorm')
+                                      input_c=c11_dim[2], ks=15, s=2, name='g_c12_conv1d'), name='g_c12_inorm')
         c12_dim = c12.get_shape().as_list()
-     
 
         # d1 is batch_size * 8 * (options.conv_dim*8*2)
-        d1 = deconv1d(c9, output_shape=[tf.shape(c12)[0], (int)(c12_dim[1] * 2),
-                                        (int)(c12_dim[2])], input_c=c12_dim[2], ks=5, s=2, name='g_d1_deconv1d')
+        d1 = deconv1d(c12, output_shape=[tf.shape(c12)[0], (int)(c12_dim[1] * 2),
+                                         (int)(c12_dim[2])], input_c=c12_dim[2], ks=5, s=2, name='g_d1_deconv1d')
         d1 = tf.nn.dropout(d1, dropout_rate)
         d1 = tf.concat([instance_norm_1d(d1, name='g_d1_inorm'), c11], 2)
         d1_dim = d1.get_shape().as_list()
@@ -133,7 +133,7 @@ def generator(wave, options, reuse=False, name="generator"):
         d2 = deconv1d(d1, output_shape=[tf.shape(d1)[0], (int)(d1_dim[1] * 2),
                                         (int)(d1_dim[2]/2)], input_c=d1_dim[2], ks=5, s=2, name='g_d2_deconv1d')
         d2 = tf.nn.dropout(d2, dropout_rate)
-        d2 = tf.concat([instance_norm_1d(d2, name='g_d2_inorm'), 10], 2)
+        d2 = tf.concat([instance_norm_1d(d2, name='g_d2_inorm'), c10], 2)
         d2_dim = d2.get_shape().as_list()
 
         # d3 is batch_size * 32 * (options.conv_dim*8*2)
@@ -158,19 +158,19 @@ def generator(wave, options, reuse=False, name="generator"):
 
         # d6 is batch_size * 256 * (options.conv_dim*8*2)
         d6 = deconv1d(d5, output_shape=[tf.shape(d5)[0], (int)(d5_dim[1] * 2),
-                                        (int)(d5_dim[2]/(2*2))], input_c=d5_dim[2], ks=5, s=2, name='g_d6_deconv1d')
+                                        (int)(d5_dim[2]/2)], input_c=d5_dim[2], ks=5, s=2, name='g_d6_deconv1d')
         d6 = tf.concat([instance_norm_1d(d6, name='g_d6_inorm'), c6], 2)
         d6_dim = d6.get_shape().as_list()
 
         # d7 is batch_size * 512 * (options.conv_dim*8*2)
         d7 = deconv1d(d6, output_shape=[tf.shape(d6)[0], (int)(d6_dim[1] * 2),
-                                        (int)(d6_dim[2]/(2*2))], input_c=d6_dim[2], ks=5, s=2, name='g_d7_deconv1d')
+                                        (int)(d6_dim[2]/2)], input_c=d6_dim[2], ks=5, s=2, name='g_d7_deconv1d')
         d7 = tf.concat([instance_norm_1d(d7, name='g_d7_inorm'), c5], 2)
         d7_dim = d7.get_shape().as_list()
 
         # d8 is batch_size * 1024 * (options.conv_dim*8*2)
         d8 = deconv1d(d7, output_shape=[tf.shape(d7)[0], (int)(d7_dim[1] * 2),
-                                        (int)(d7_dim[2]/(2*2))], input_c=d7_dim[2], ks=5, s=2, name='g_d8_deconv1d')
+                                        (int)(d7_dim[2]/2)], input_c=d7_dim[2], ks=5, s=2, name='g_d8_deconv1d')
         d8 = tf.concat([instance_norm_1d(d8, name='g_d8_inorm'), c4], 2)
         d8_dim = d8.get_shape().as_list()
 
@@ -182,13 +182,13 @@ def generator(wave, options, reuse=False, name="generator"):
 
         # d10 is batch_size * 4096 * (options.conv_dim*2*2)
         d10 = deconv1d(d9, output_shape=[tf.shape(d9)[0], (int)(d9_dim[1] * 2),
-                                        (int)(d9_dim[2]/(2*2))], input_c=d9_dim[2], ks=5, s=2, name='g_d10_deconv1d')
+                                         (int)(d9_dim[2]/(2*2))], input_c=d9_dim[2], ks=5, s=2, name='g_d10_deconv1d')
         d10 = tf.concat([instance_norm_1d(d10, name='g_d10_inorm'), c2], 2)
         d10_dim = d10.get_shape().as_list()
 
         # d11 is batch_size * 8192 * (options.conv_dim*1*2)
         d11 = deconv1d(d10, output_shape=[tf.shape(d10)[0], (int)(d10_dim[1] * 2),
-                                        (int)(d10_dim[2]/(2*2))], input_c=d10_dim[2], ks=5, s=2, name='g_d11_deconv1d')
+                                          (int)(d10_dim[2]/(2*2))], input_c=d10_dim[2], ks=5, s=2, name='g_d11_deconv1d')
         d11 = tf.concat([instance_norm_1d(d11, name='g_d11_inorm'), c1], 2)
         d11_dim = d11.get_shape().as_list()
 
@@ -200,7 +200,6 @@ def generator(wave, options, reuse=False, name="generator"):
 
         # d13 is batch_size * 16384 * 1
         d13 = deconv1d(d12, output_shape=[tf.shape(d12)[0], (int)(
-            d12_dim[1] ), 1], input_c=d12_dim[2], ks=5, s=1, name='g_d13_deconv1d')
-
+            d12_dim[1]), 1], input_c=d12_dim[2], ks=5, s=1, name='g_d13_deconv1d')
 
         return tf.nn.tanh(d13)
