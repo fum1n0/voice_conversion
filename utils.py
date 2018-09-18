@@ -9,49 +9,70 @@ import csv
 
 def load_train_data(filenames, args):
 
-    data = np.empty((0, args.fl), np.float32)
-
     for filename in filenames:
-        wav_ = np.empty((0, args.fl), np.float32)
+
         x, fs = readWave(filename, args.stereo)
         if fs != args.fs or len(x) < args.fl + args.fp:
             continue
 
-        period = (int)(len(x) / args.fp)
-        sub = args.fl - (len(x) - args.fp * period)
-        for i in range(0, sub):
-            x = np.append(x, 0.0)
+        y = x.copy()
+        y = y[args.fp:]
 
-        idx = (int)((len(x) - args.fl) / args.fp)
-        for i in range(idx):
-            signal = x[i * args.fp:i * args.fp + args.fl]
-            wav_ = np.append(wav_, np.array([signal]), axis=0)
-            data = np.append(data, np.array([signal]), axis=0)
+        id_x = (int)(len(x) / args.fl)
+        sub = args.fl * (id_x+1) - len(x)
+        z_x = np.zeros(sub)
+        x = np.append(x, z_x)
+
+        id_y = (int)(len(y) / args.fl)
+        sub = args.fl * (id_y+1) - len(y)
+        z_y = np.zeros(sub)
+        y = np.append(y, z_y)
+
+        mini_id = min(id_x, id_y) + 1
+
+        wav_x = np.split(x, id_x + 1)
+        wav_y = np.split(y, id_y + 1)
+
+        wav_ = np.empty((mini_id*2, args.fl), np.float32)
+
+        wav_[0::2] = wav_x[:mini_id]
+        wav_[1::2] = wav_y[:mini_id]
 
         np.savetxt(filename[:-4]+".csv", wav_, delimiter=",")
 
 
-
 def load_test_data(filename, args):
-
-    data = np.empty((0, args.fl), np.float32)
 
     x, fs = readWave(filename, args.stereo)
     if fs != args.fs or len(x) < args.fl + args.fp:
         return data
 
-    period = (int)(len(x) / args.fp)
-    sub = args.fl - (len(x) - args.fp * period)
-    for i in range(0, sub):
-        x = np.append(x, 0.0)
+    y = x.copy()
+    y = y[args.fp:]
 
-    idx = (int)((len(x) - args.fl) / args.fp)
-    for i in range(idx):
-        signal = x[i*args.fp:i*args.fp+args.fl]
-        data = np.append(data, np.array([signal]), axis=0)
+    id_x = (int)(len(x) / args.fl)
+    sub = args.fl * (id_x+1) - len(x)
+    z_x = np.zeros(sub)
+    x = np.append(x, z_x)
 
-    np.savetxt(filename[:-4]+".csv", data, delimiter=",")
-    return data
+    id_y = (int)(len(y) / args.fl)
+    sub = args.fl * (id_y+1) - len(y)
+    z_y = np.zeros(sub)
+    y = np.append(y, z_y)
+
+    mini_id = min(id_x, id_y) + 1
+
+    wav_x = np.split(x, id_x + 1)
+    wav_y = np.split(y, id_y + 1)
+
+    wav_ = np.empty((mini_id*2, args.fl), np.float32)
+
+    wav_[0::2] = wav_x[:mini_id]
+    wav_[1::2] = wav_y[:mini_id]
+
+    np.savetxt(filename[:-4] + ".csv", wav_, delimiter=",")
+    
+    return wav_
 
 
 def load_train_csv(filenames, args):

@@ -282,7 +282,9 @@ class CycleGAN(object):
                 is_csv = False
 
         if not is_csv:
+            print("load trainA, convert csv")
             load_train_data(listA, args)
+            print("load trainB, convert csv")
             load_train_data(listB, args)
 
         for epoch in range(args.epoch):
@@ -416,11 +418,11 @@ class CycleGAN(object):
             os.makedirs(sampleB_save_dir)
 
         for filename in listA:
-            if is_csv:
-                dataA = load_test_csv(filename, args)
-            else:
+            if not is_csv:
+                print("load testA, convert csv")
                 dataA = load_test_data(filename, args)
-
+            dataA = load_test_csv(filename, args)
+            
             if len(dataA) == 0:
                 continue
 
@@ -436,10 +438,10 @@ class CycleGAN(object):
                 sampleA_save_dir, epoch, idx, os.path.basename(filename)[:-4]))
 
         for filename in listB:
-            if is_csv:
-                dataB = load_test_csv(filename, args)
-            else:
+            if not is_csv:
                 dataB = load_test_data(filename, args)
+
+            dataB = load_test_csv(filename, args)               
 
             if len(dataB) == 0:
                 continue
