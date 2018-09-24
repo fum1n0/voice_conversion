@@ -248,7 +248,7 @@ class CycleGAN(object):
         self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
 
         counter = 1
-        is_csv = True
+
         start_time = time.time()
 
         if args.continue_train:
@@ -257,98 +257,69 @@ class CycleGAN(object):
             else:
                 print(" [!] Load failed...")
 
-        if args.preprocessing:
-            listA = glob(
-                './datasets/{}/*.csv'.format(self.dataset_dir + '/trainA_c'))
-            listB = glob(
-                './datasets/{}/*.csv'.format(self.dataset_dir + '/trainB_c'))
+        for epoch in range(args.epoch):
 
-            if len(listA) == 0 or len(listB):
+            if args.preprocessing:
                 listA = glob(
                     './datasets/{}/*.wav'.format(self.dataset_dir + '/trainA_c'))
                 listB = glob(
                     './datasets/{}/*.wav'.format(self.dataset_dir + '/trainB_c'))
-                is_csv = False
-        else:
-            listA = glob(
-                './datasets/{}/*.csv'.format(self.dataset_dir + '/trainA'))
-            listB = glob(
-                './datasets/{}/*.csv'.format(self.dataset_dir + '/trainB'))
-            if len(listA) == 0 or len(listB):
+            else:
                 listA = glob(
                     './datasets/{}/*.wav'.format(self.dataset_dir + '/trainA'))
                 listB = glob(
                     './datasets/{}/*.wav'.format(self.dataset_dir + '/trainB'))
-                is_csv = False
-
-        if not is_csv:
-            print("load trainA, convert csv")
-            load_train_data(listA, args)
-            print("load trainB, convert csv")
-            load_train_data(listB, args)
-
-        for epoch in range(args.epoch):
-
-            if args.use_L1_freq:
-                if np.mod(epoch, args.L1_freq) == 0:
-                    if self.L1_lambda == args.L1_lambda:
-                        self.L1_lambda = args.L1_another
-                    else:
-                        self.L1_lambda = args.L1_lambda
-
-            if args.preprocessing:
-                listA = glob(
-                    './datasets/{}/*.csv'.format(self.dataset_dir + '/trainA_c'))
-                listB = glob(
-                    './datasets/{}/*.csv'.format(self.dataset_dir + '/trainB_c'))
-            else:
-                listA = glob(
-                    './datasets/{}/*.csv'.format(self.dataset_dir + '/trainA'))
-                listB = glob(
-                    './datasets/{}/*.csv'.format(self.dataset_dir + '/trainB'))
 
             np.random.shuffle(listA)
             np.random.shuffle(listB)
-
-            dataA = load_train_csv(listA, args)
-            dataB = load_train_csv(listB, args)
-
-            batch_idxs = (int)(min(len(dataA), len(dataB)) / self.batch_size)
+            list_len = min(len(listA), len(listB))
 
             lr = args.lr if epoch < args.epoch_step else args.lr * \
                 (args.epoch-epoch)/(args.epoch-args.epoch_step)
 
-            for idx in range(0, batch_idxs):
+            for num in range(0, list_len):
 
-                batch_data = np.empty((0, self.fl, 2), np.float32)
-                for i in range(0, self.batch_size):
-                    a_ar = dataA[idx * self.batch_size +
-                                 i].reshape(1, self.fl, 1)
-                    b_ar = dataB[idx * self.batch_size +
-                                 i].reshape(1, self.fl, 1)
-                    batch_mini = np.concatenate([a_ar, b_ar], axis=2)
-                    batch_data = np.append(batch_data, batch_mini, axis=0)
+                dataA = load_data(listA[num], args)
+                dataB = load_data(listB[num], args)
 
-                # Update G network and record fake outputs
-                fake_A, fake_B, _, summary_str = self.sess.run(
-                    [self.fake_A, self.fake_B, self.g_optim, self.g_sum],
-                    feed_dict={self.real_data: batch_data, self.lr: lr, self.L1_lambda_tf: self.L1_lambda})
-                self.writer.add_summary(summary_str, counter)
+                if min(len(dataA), len(dataB)) < 1:
+                    continue
 
-                # Update D network
-                _, summary_str = self.sess.run(
-                    [self.d_optim, self.d_sum],
-                    feed_dict={self.real_data: batch_data,
-                               self.fake_A_sample: fake_A,
-                               self.fake_B_sample: fake_B,
-                               self.lr: lr})
-                self.writer.add_summary(summary_str, counter)
+                batch_idxs = (int)(
+                    min(len(dataA), len(dataB)) / self.batch_size)
 
-                counter += 1
-                print(("Epoch: [%4d] [%4d/%4d] time: %4.4f, lambda: %4d" % (
-                    epoch, idx, batch_idxs, time.time() - start_time, self.L1_lambda)))
+                for idx in range(0, batch_idxs):
 
-            self.sample_test(args.sample_dir, epoch, idx, args)
+                    batch_data = np.empty((0, self.fl, 2), np.float32)
+                    for i in range(0, self.batch_size):
+                        a_ar = dataA[idx * self.batch_size +
+                                     i].reshape(1, self.fl, 1)
+                        b_ar = dataB[idx * self.batch_size +
+                                     i].reshape(1, self.fl, 1)
+                        batch_mini = np.concatenate([a_ar, b_ar], axis=2)
+                        batch_data = np.append(batch_data, batch_mini, axis=0)
+
+                    # Update G network and record fake outputs
+                    fake_A, fake_B, _, summary_str = self.sess.run(
+                        [self.fake_A, self.fake_B, self.g_optim, self.g_sum],
+                        feed_dict={self.real_data: batch_data, self.lr: lr, self.L1_lambda_tf: self.L1_lambda})
+                    self.writer.add_summary(summary_str, counter)
+
+                    # Update D network
+                    _, summary_str = self.sess.run(
+                        [self.d_optim, self.d_sum],
+                        feed_dict={self.real_data: batch_data,
+                                   self.fake_A_sample: fake_A,
+                                   self.fake_B_sample: fake_B,
+                                   self.lr: lr})
+                    self.writer.add_summary(summary_str, counter)
+
+                    counter += 1
+                    if np.mod(counter, 10) == 0:
+                        print(("Epoch: [%4d], File[%3d/%3d] [%5d/%5d] time: %5.5f" % (
+                            epoch, num, list_len, idx, batch_idxs, time.time() - start_time)))
+
+            self.sample_test(args.sample_dir, epoch, args)
             self.save_model(args.checkpoint_dir, counter)
 
     def save_model(self, checkpoint_dir, step):
@@ -378,37 +349,22 @@ class CycleGAN(object):
         else:
             return False
 
-    def sample_test(self, sample_dir, epoch, idx, args):
-
-        is_csv = True
+    def sample_test(self, sample_dir, epoch, args):
 
         if args.preprocessing:
             listA = glob(
-                './datasets/{}/*.csv'.format(self.dataset_dir + '/testA_c'))
+                './datasets/{}/*.wav'.format(self.dataset_dir + '/testA_c'))
             listB = glob(
-                './datasets/{}/*.csv'.format(self.dataset_dir + '/testB_c'))
-
-            if len(listA) == 0 or len(listB) == 0:
-                listA = glob(
-                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testA_c'))
-                listB = glob(
-                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testB_c'))
-                is_csv = False
+                './datasets/{}/*.wav'.format(self.dataset_dir + '/testB_c'))
         else:
             listA = glob(
-                './datasets/{}/*.csv'.format(self.dataset_dir + '/testA'))
+                './datasets/{}/*.wav'.format(self.dataset_dir + '/testA'))
             listB = glob(
-                './datasets/{}/*.csv'.format(self.dataset_dir + '/testB'))
+                './datasets/{}/*.wav'.format(self.dataset_dir + '/testB'))
 
-            if len(listA) == 0 or len(listB) == 0:
-                listA = glob(
-                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testA'))
-                listB = glob(
-                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testB'))
-                is_csv = False
+        A_epoch_idx_dir = 'A_{:04d}'.format(epoch)
+        B_epoch_idx_dir = 'B_{:04d}'.format(epoch)
 
-        A_epoch_idx_dir = 'A_{:04d}_{:04d}'.format(epoch, idx)
-        B_epoch_idx_dir = 'B_{:04d}_{:04d}'.format(epoch, idx)
         sampleA_save_dir = os.path.join(sample_dir, A_epoch_idx_dir)
         sampleB_save_dir = os.path.join(sample_dir, B_epoch_idx_dir)
 
@@ -418,11 +374,9 @@ class CycleGAN(object):
             os.makedirs(sampleB_save_dir)
 
         for filename in listA:
-            if not is_csv:
-                print("load testA, convert csv")
-                dataA = load_test_data(filename, args)
-            dataA = load_test_csv(filename, args)
-            
+
+            dataA = load_data(filename, args)
+
             if len(dataA) == 0:
                 continue
 
@@ -434,14 +388,11 @@ class CycleGAN(object):
                 fake_data[i*self.fp:i*self.fp +
                           self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
 
-            writeWave(fake_data, args.fs, name='./{}/AtoB_{:04d}_{:04d}_{}'.format(
-                sampleA_save_dir, epoch, idx, os.path.basename(filename)[:-4]))
+            writeWave(fake_data, args.fs, name='./{}/AtoB_{:04d}_{}'.format(
+                sampleA_save_dir, epoch, os.path.basename(filename)[:-4]))
 
         for filename in listB:
-            if not is_csv:
-                dataB = load_test_data(filename, args)
-
-            dataB = load_test_csv(filename, args)               
+            dataB = load_data(filename, args)
 
             if len(dataB) == 0:
                 continue
@@ -454,33 +405,20 @@ class CycleGAN(object):
                 fake_data[i*self.fp:i*self.fp +
                           self.fl] = fake_data[i*self.fp:i*self.fp + self.fl] + fake_signal
 
-            writeWave(fake_data, args.fs, name='./{}/BtoA_{:04d}_{:04d}_{}'.format(
-                sampleB_save_dir, epoch, idx, os.path.basename(filename)[:-4]))
+            writeWave(fake_data, args.fs, name='./{}/BtoA_{:04d}_{}'.format(
+                sampleB_save_dir, epoch, os.path.basename(filename)[:-4]))
 
     def test(self, args):
 
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)
 
-        is_csv = True
-
         if args.which_direction == 'AtoB':
             sample_files = glob(
-                './datasets/{}/*.csv'.format(self.dataset_dir + '/testA'))
-            if len(sample_files) == 0:
-                sample_files = glob(
-                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testA'))
-                is_csv = False
-
+                './datasets/{}/*.wav'.format(self.dataset_dir + '/testA'))
         elif args.which_direction == 'BtoA':
             sample_files = glob(
-                './datasets/{}/*.csv'.format(self.dataset_dir + '/testB'))
-
-            if len(sample_files) == 0:
-                sample_files = glob(
-                    './datasets/{}/*.wav'.format(self.dataset_dir + '/testB'))
-                is_csv = False
-
+                './datasets/{}/*.wav'.format(self.dataset_dir + '/testB'))
         else:
             raise Exception('--which_direction must be AtoB or BtoA')
 
@@ -495,10 +433,7 @@ class CycleGAN(object):
         for sample_file in sample_files:
             print('Processing data: ' + os.path.basename(sample_file))
 
-            if is_csv:
-                sample_data = load_test_csv(sample_file, args)
-            else:
-                sample_data = load_test_data(sample_file, args)
+            sample_data = load_data(sample_file, args)
 
             if len(sample_data) == 0:
                 continue

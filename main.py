@@ -64,13 +64,6 @@ parser.add_argument('--test_dir', dest='test_dir',
 parser.add_argument('--L1_lambda', dest='L1_lambda', type=float,
                     default=10.0, help='weight on L1 term in objective')
 
-parser.add_argument('--use_L1_freq', dest='use_L1_freq',
-                    type=bool, default=False, help='weight on L1 freq change')
-parser.add_argument('--L1_freq', dest='L1_freq', type=int,
-                    default=10, help='L1 change freq')
-parser.add_argument('--L1_another', dest='L1_another',
-                    type=float, default=1.0, help='another one weight on L1')
-
 parser.add_argument('--preprocessing', dest='preprocessing',
                     type=bool, default=False, help='use preprocessing')
 

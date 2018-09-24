@@ -200,6 +200,6 @@ def generator(wave, options, reuse=False, name="generator"):
 
         # d13 is batch_size * 16384 * 1
         d13 = deconv1d(d12, output_shape=[tf.shape(d12)[0], (int)(
-            d12_dim[1]), 1], input_c=d12_dim[2], ks=5, s=1, name='g_d13_deconv1d')
+            d12_dim[1]), 1], input_c=d12_dim[2], ks=1, s=1, name='g_d13_deconv1d')
 
         return tf.nn.tanh(d13)

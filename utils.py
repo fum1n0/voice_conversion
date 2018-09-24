@@ -7,93 +7,37 @@ import scipy.fftpack
 import csv
 
 
-def load_train_data(filenames, args):
-
-    for filename in filenames:
-
-        x, fs = readWave(filename, args.stereo)
-        if fs != args.fs or len(x) < args.fl + args.fp:
-            continue
-
-        y = x.copy()
-        y = y[args.fp:]
-
-        id_x = (int)(len(x) / args.fl)
-        sub = args.fl * (id_x+1) - len(x)
-        z_x = np.zeros(sub)
-        x = np.append(x, z_x)
-
-        id_y = (int)(len(y) / args.fl)
-        sub = args.fl * (id_y+1) - len(y)
-        z_y = np.zeros(sub)
-        y = np.append(y, z_y)
-
-        mini_id = min(id_x, id_y) + 1
-
-        wav_x = np.split(x, id_x + 1)
-        wav_y = np.split(y, id_y + 1)
-
-        wav_ = np.empty((mini_id*2, args.fl), np.float32)
-
-        wav_[0::2] = wav_x[:mini_id]
-        wav_[1::2] = wav_y[:mini_id]
-
-        np.savetxt(filename[:-4]+".csv", wav_, delimiter=",")
-
-
-def load_test_data(filename, args):
+def load_data(filename, args):
 
     x, fs = readWave(filename, args.stereo)
-    if fs != args.fs or len(x) < args.fl + args.fp:
-        return data
+
+    if len(x) < args.fl + args.fp:
+        return np.empty((0, args.fl), np.float32)
+
+    if fs != args.fs:
+        if fs > args.fs:
+            x, fs = upsampling(x, fs, fs / args.fs)
+        else:
+            x, fs = downsampling(x, fs, args.fs / fs)
+        writeWave(x, fs, filename[:-4])
 
     y = x.copy()
     y = y[args.fp:]
 
     id_x = (int)(len(x) / args.fl)
-    sub = args.fl * (id_x+1) - len(x)
-    z_x = np.zeros(sub)
-    x = np.append(x, z_x)
-
     id_y = (int)(len(y) / args.fl)
-    sub = args.fl * (id_y+1) - len(y)
-    z_y = np.zeros(sub)
-    y = np.append(y, z_y)
 
-    mini_id = min(id_x, id_y) + 1
+    mini_id = min(id_x, id_y)
 
-    wav_x = np.split(x, id_x + 1)
-    wav_y = np.split(y, id_y + 1)
+    wav_x = x[:id_x*args.fl].reshape(-1, args.fl)
+    wav_y = y[:id_y*args.fl].reshape(-1, args.fl)
 
     wav_ = np.empty((mini_id*2, args.fl), np.float32)
 
     wav_[0::2] = wav_x[:mini_id]
     wav_[1::2] = wav_y[:mini_id]
 
-    np.savetxt(filename[:-4] + ".csv", wav_, delimiter=",")
-    
     return wav_
-
-
-def load_train_csv(filenames, args):
-
-    data = np.empty((0, args.fl), np.float32)
-
-    for filename in filenames:
-        x = np.loadtxt(filename, delimiter=',')
-        data = np.append(data, np.array(x), axis=0)
-
-    return data
-
-
-def load_test_csv(filename, args):
-
-    data = np.empty((0, args.fl), np.float32)
-
-    x = np.loadtxt(filename, delimiter=',')
-    data = np.append(data, np.array(x), axis=0)
-
-    return data
 
 
 def readWave(filename, stereo=False):
@@ -168,3 +112,58 @@ def cut_signal(signal, fl, fp, c_power):
     cut_signal = cut_signal[:fl+j*fp]
 
     return cut_signal
+
+
+def upsampling(data, fs, conversion_rate):
+    """
+    アップサンプリングを行う．
+    入力として，変換レートとデータとサンプリング周波数．
+    アップサンプリング後のデータとサンプリング周波数を返す．
+    """
+    # 補間するサンプル数を決める
+    interpolationSampleNum = conversion_rate-1
+
+    # FIRフィルタの用意をする
+    nyqF = (fs*conversion_rate)/2.0     # 変換後のナイキスト周波数
+    cF = (fs/2.0-500.)/nyqF             # カットオフ周波数を設定（変換前のナイキスト周波数より少し下を設定）
+    taps = 511                          # フィルタ係数（奇数じゃないとだめ）
+    b = sig.firwin(taps, cF)   # LPFを用意
+
+    # 補間処理
+    upData = []
+    for d in data:
+        upData.append(d)
+        # 1サンプルの後に，interpolationSampleNum分だけ0を追加する
+        for i in range(interpolationSampleNum):
+            upData.append(0.0)
+
+    # フィルタリング
+    resultData = sig.lfilter(b, 1, upData)
+    return (resultData, (int)(fs*conversion_rate))
+
+
+def downsampling(data, fs, conversion_rate):
+    """
+    ダウンサンプリングを行う．
+    入力として，変換レートとデータとサンプリング周波数．
+    アップサンプリング後のデータとサンプリング周波数を返す．
+    """
+    # 間引くサンプル数を決める
+    decimationSampleNum = conversion_rate-1
+
+    # FIRフィルタの用意をする
+    nyqF = (fs/conversion_rate)/2.0             # 変換後のナイキスト周波数
+    # カットオフ周波数を設定（変換前のナイキスト周波数より少し下を設定）
+    cF = (fs/conversion_rate/2.0-500.)/nyqF
+    taps = 511                                  # フィルタ係数（奇数じゃないとだめ）
+    b = sig.firwin(taps, cF)           # LPFを用意
+
+    # フィルタリング
+    data = sig.lfilter(b, 1, data)
+
+    # 間引き処理
+    downData = []
+    for i in range(0, len(data), decimationSampleNum+1):
+        downData.append(data[i])
+
+    return (downData, (int)(fs/conversion_rate))
